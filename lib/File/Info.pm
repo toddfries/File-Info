@@ -42,6 +42,9 @@ sub new {
 			$me->{dbname} = $1;
 		}
 	}
+	if (!defined($me->{dbname})) {
+		$me->{dbname} = "?";
+	}
 	if (!defined($user)) {
 		$user = "";
 	}
@@ -67,7 +70,7 @@ sub dohash {
 	}
 	my $mode = $arg->{st}->{mode};
 	if (!defined($mode)) {
-		printf STDERR "Error stating '%s'\n", $line;
+		printf STDERR "Error stating '%s'\n", $file;
 		return;
 	}
 	$arg->{file} = $file;
@@ -79,8 +82,9 @@ sub dohash {
 	$arg->{dbfn} =~ s/\/\//\//g;
 	$arg->{dbfn} =~ s/\/\.\//\//g;
 
+	my @hashes;
 	if (S_ISREG($mode)) {
-		@hashes = gethash($arg);
+		@hashes = $me->gethash($arg);
 	}
 
 	return ($arg,@hashes);
@@ -108,12 +112,12 @@ sub init_db {
                 $blobtype = "bytea";
                 $tablere = '\\.%name%$';
                 #$get_pgsz = "show block_size";
-                $stats->{pgsz} = 1;
-                $get_dbsz = "SELECT  pg_database_size(datname) db_size FROM pg_database where datname = '";
-                $get_dbsz .= $dbname;
-                $get_dbsz .= "' ORDER BY db_size";
-		$stats->{pgct} = $db->do_oneret_query($get_dbsz);
-                $blob_bind_type = { pg_type => PG_BYTEA };
+                $me->{stats}->{pgsz} = 1;
+                $me->{get}->{dbsz} = "SELECT  pg_database_size(datname) db_size FROM pg_database where datname = '";
+                $me->{get}->{dbsz} .= $me->{dbname};
+                $me->{get}->{dbsz} .= "' ORDER BY db_size";
+		$me->{stats}->{pgct} = $db->do_oneret_query($me->{get}->{dbsz});
+                $me->{bbt} = { pg_type => PG_BYTEA };
                 $index_create_re = "CREATE INDEX %NAME% ON %TABLE% using btree ( %PARAMS% )";
                 $db->do("SET application_name = '?/".getpid()."'");
 	} else {
