@@ -32,8 +32,8 @@ sub new {
 	my ($class, $dsn, $user, $pass) = @_;
 
 	my $me = { };
-	$me->{$dsn} = $dsn;
 	$me->{usedb} = 0;
+	$me->{dsn} = $dsn;
 
 	my $bret = bless $me, $class;
 	if (defined($dsn)) {
@@ -51,8 +51,8 @@ sub new {
 	if (!defined($pass)) {
 		$pass = "";
 	}
-	$me->{$user} = $user;
-	$me->{$pass} = $pass;
+	$me->{user} = $user;
+	$me->{pass} = $pass;
 	if ($me->{usedb} > 0) {
 		$me->{db} = $me->init_db();
 	}
@@ -91,8 +91,10 @@ sub dohash {
 }
 
 sub init_db {
-	my ($me, $dsn, $user, $pass) = @_;
-	my $db = FDC::db->new($dsn, $user, $pass);
+	my ($me) = @_;
+	printf "dsn='%s', user='%s', pass='%s'\n", $me->{dsn}, $me->{user}, $me->{pass};
+
+	my $db = FDC::db->new($me->{dsn}, $me->{user}, $me->{pass});
 
 	if (!defined($db)) {
 		print "db connection error...not using!\n";
