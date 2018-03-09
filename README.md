@@ -6,7 +6,7 @@ files.
 
 It is a work in progress.
 
-INSTALLATION
+#INSTALLATION
 
 To install this module type the following:
 
@@ -17,7 +17,7 @@ To install this module type the following:
    make install
 ```
 
-DEPENDENCIES
+#DEPENDENCIES
 
 This module requires these other modules and libraries:
 
@@ -26,8 +26,32 @@ This module requires these other modules and libraries:
   DBD::Pg
 ```
 
+The example "showinfo" additionally requires:
 
-COPYRIGHT AND LICENCE
+```
+  ReadConf
+```
+
+#EXAMPLES
+
+  To use "showinfo" a sample use case would be:
+
+```
+	$ find t lib | ./example/showinfo 
+	-|-|-|-|5aa18d3f|200|t/
+	c4422a446dc566db16ac9f2f6a2059e60ea66942cb71268ef0264293b9f09b07adb7feec3ebe6181bdaae7130336de5d|11fceaf2791f054f9117cda0f3fff468ecdf7d04|1a84f562a22558991940194649d0e5bc65101c11|391d5e7b41cbe1d2e35a563e0e276608|5aa18d51|1d5|t/File-Info.t
+	-|-|-|-|5aa18744|200|lib/
+	-|-|-|-|5aa1874c|200|lib/File/
+	ef645369689194067c12259a808bb244b64eecda65bd6d449cf0c40134782eba03b222d561d711667970954c89cdd5bb|44b653b76298eef545222c0f88306d4698ae8e90|6ff4a70cc76e64c5b85c640e847c91137a7ad9b0|58a7036e539e2cdec7cb9d7160c3a5cd|5aa2d5a8|211c|lib/File/Info.pm
+```
+
+The pipe separated values above represent, in order:
+
+```
+	SHA384|SHA1|RIPEMD160|MD5|mtime|size|filename
+```
+
+#COPYRIGHT AND LICENCE
 
 ```
 # Copyright (c) 2018 Todd T. Fries <todd@fries.net>
