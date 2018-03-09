@@ -1,0 +1,99 @@
+#!/usr/bin/perl
+
+# Copyright (c) 2017,2018 Todd T. Fries <todd@fries.net>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+
+use strict;
+use warnings;
+
+use ReadConf;
+use File::Info;
+
+use Fcntl ':mode';
+use POSIX qw(getpid getcwd);
+
+my ($dsn, $user, $pass);
+my $r = ReadConf->new;
+my $config = $r->readconf($ENV{'HOME'}."/.showinfo.conf")->{_};
+if (!defined($config)) {
+	$dsn = "";
+	$user = "";
+	$pass = "";
+} else {
+	$dsn = $config->{dsn};
+	$user = $config->{user};
+	$pass = $config->{pass};
+}
+
+
+if (!defined($user)) {
+	$user = "";
+}
+if (!defined($pass)) {
+	$pass = "";
+}
+
+my $fi = File::Info->new($dsn, $user, $pass);
+if (defined($fi->{stats}->{pgct})) {
+	printf "pgct %s\n", $fi->{stats}->{pgct};
+}
+
+my $file;
+while (<STDIN>) {
+	chomp($file=$_);
+
+	my ($a,@hashes) = $fi->dohash($file);
+	if (!@hashes) {
+		@hashes = ('-','-','-','-');
+	}
+
+	my $st = $a->{st};
+	my $mode = $st->{mode};
+
+	if (!defined($mode)) {
+		printf STDERR "file %s mode is undef\n";
+		next;
+	}
+
+	my $t="";
+	my $i=0;
+	my $hash;
+
+	if (S_ISREG($mode)) {
+		$t="";
+	} elsif (S_ISDIR($mode)) {
+		$t="/";
+	} elsif (S_ISFIFO($mode)) {
+		$t="|";
+	} elsif (S_ISSOCK($mode)) {
+		$t="=";
+	} elsif (S_ISLNK($mode)) {
+		my $target = readlink($file);
+		$t="\@ -> $target";
+	} else {
+		$t="?";
+	}
+	foreach my $tmp (@hashes) {
+		chomp($hash=$tmp);
+		if ($i++ > 0) {
+			print "|";
+		}
+		print $hash;
+	}
+	
+
+	printf "|%x|%x|%s%s\n",$st->{mtime},$st->{size},$file,$t;
+}
+1;
