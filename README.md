@@ -69,6 +69,8 @@ The pipe separated values above represent, in order:
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
 
+# DONATIONS
+
 If you find this useful and wish to donate, I accept donations:
 
 - BTC: [1H3W5FxJXgLFi4rC2BbXD7L76r5BoKgyve](bitcoin:1H3W5FxJXgLFi4rC2BbXD7L76r5BoKgyve)
