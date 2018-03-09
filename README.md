@@ -6,7 +6,7 @@ files.
 
 It is a work in progress.
 
-#INSTALLATION
+# INSTALLATION
 
 To install this module type the following:
 
@@ -17,7 +17,7 @@ To install this module type the following:
    make install
 ```
 
-#DEPENDENCIES
+# DEPENDENCIES
 
 This module requires these other modules and libraries:
 
@@ -32,7 +32,7 @@ The example "showinfo" additionally requires:
   ReadConf
 ```
 
-#EXAMPLES
+# EXAMPLES
 
   To use "showinfo" a sample use case would be:
 
@@ -51,7 +51,7 @@ The pipe separated values above represent, in order:
 	SHA384|SHA1|RIPEMD160|MD5|mtime|size|filename
 ```
 
-#COPYRIGHT AND LICENCE
+# COPYRIGHT AND LICENCE
 
 ```
 # Copyright (c) 2018 Todd T. Fries <todd@fries.net>
