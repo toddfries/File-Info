@@ -57,7 +57,17 @@ sub new {
 		$me->init_db();
 	}
 	$me->{hlist} = init_hashes();
+	$me->{vars}->{verbose} = 0;
 	return $bret;
+}
+
+sub verbose {
+	my ($me, $vset) = @_;
+
+	if (defined($vset)) {
+		$me->{vars}->{verbose} = $vset;
+	}
+	return $me->{vars}->{verbose};
 }
 
 sub dohash {
@@ -70,7 +80,8 @@ sub dohash {
 	}
 	my $mode = $arg->{st}->{mode};
 	if (!defined($mode)) {
-		printf STDERR "Error stating '%s'\n", $file;
+		printf STDERR "File::Info:dohash(): Error stating '%s'\n",
+		    $file;
 		return;
 	}
 	$arg->{file} = $file;
@@ -101,12 +112,16 @@ sub init_db {
 	$me->{dbr} = $dbr;
 
 	if (!defined($db)) {
-		print "db connection error...not using!\n";
+		if ($me->{vars}->{verbose} > 0) {
+			print "db connection error...not using!\n";
+		}
 		$me->{usedb} = 0;
 		return;
 	}
 	if (!defined($dbr)) {
-		print "dbr connection error...not using!\n";
+		if ($me->{vars}->{verbose} > 0) {
+			print "dbr connection error...not using!\n";
+		}
 		$me->{usedb} = 0;
 		return;
 	}
@@ -132,8 +147,11 @@ sub init_db {
                 $index_create_re = "CREATE INDEX %NAME% ON %TABLE% using btree ( %PARAMS% )";
                 $db->do("SET application_name = '?/".getpid()."'");
 	} else {
-		printf "Unhandled dbmsname and version: %s %s", $dbmsname,
-		    $dbmsver;
+		$me->{usedb} = 0;
+		if ($me->{vars}->{verbose} > 0) {
+			printf "Unhandled dbmsname and version: %s %s",
+			    $dbmsname, $dbmsver;
+		}
 		return;
 	}
 
@@ -260,7 +278,9 @@ sub dbsave {
 		}
 		$q =~ s/, $//;
 		$q .= " WHERE id = ${id}";
-		printf STDERR "%s\n",$q;
+		if ($me->{vars}->{verbose} > 0) {
+			printf STDERR "%s\n",$q;
+		}
 		$me->{db}->doquery($q);
 		return;
 	}
@@ -280,7 +300,9 @@ sub dbsave {
 	$q .= ") VALUES (";
 	$q .= $q2;
 	$q .= ")";
-	printf STDERR "%s\n",$q;
+	if ($me->{vars}->{verbose} > 0) {
+		printf STDERR "%s\n",$q;
+	}
 	$me->{db}->doquery($q);
 }
 sub dbhash {
@@ -292,7 +314,9 @@ sub dbhash {
 
 	my $sth = $me->{dbr}->doquery($q);
 	if (!defined($sth) || $sth == -1) {
-		print STDERR "query error, sth invalid\n";
+		if ($me->{vars}->{verbose} > 0) {
+			print STDERR "query error, sth invalid\n";
+		}
 		return ();
 	}
 	my $d = $sth->fetchrow_hashref;
@@ -304,21 +328,29 @@ sub dbhash {
 	#print Dumper($d);
 	#print Dumper($st);
 	if ($d->{name} ne $f) {
-		printf STDERR "dbhash({file =>'%s',...}: returned d->{name} = '%s'\n", $f, $d->{name};
+		if ($me->{vars}->{verbose} > 0) {
+			printf STDERR "dbhash({file =>'%s',...}: returned d->{name} = '%s'\n", $f, $d->{name};
+		}
 		return ();
 	}
 	my $match = 0;
 	foreach my $attr (('mtime', 'ctime', 'ino', 'dev', 'rdev', 'size')) {
 		if (!defined($d->{$attr})) {
-			print STDERR "d->{$attr} is undef\n";
+			if ($me->{vars}->{verbose} > 0) {
+				print STDERR "d->{$attr} is undef\n";
+			}
 			next;
 		}
 		if (!defined($st->{$attr})) {
-			print STDERR "st->{$attr} is undef\n";
+			if ($me->{vars}->{verbose} > 0) {
+				print STDERR "st->{$attr} is undef\n";
+			}
 			next;
 		}
 		if ($d->{$attr} != $st->{$attr}) {
-			printf STDERR "dbhash({file=>'%s',..}): %s !match (%s vs %s)\n", $f, $attr, $d->{$attr}, $st->{$attr};
+			if ($me->{vars}->{verbose} > 0) {
+				printf STDERR "dbhash({file=>'%s',..}): %s !match (%s vs %s)\n", $f, $attr, $d->{$attr}, $st->{$attr};
+			}
 			$a->{db_row_id} = $d->{id};
 			$match ++;
 		}
