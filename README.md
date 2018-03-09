@@ -26,7 +26,7 @@ This module requires these other modules and libraries:
   DBD::Pg
 ```
 
-The example "showinfo" additionally requires:
+The example **showinfo** additionally requires:
 
 ```
   ReadConf
@@ -34,7 +34,7 @@ The example "showinfo" additionally requires:
 
 # EXAMPLES
 
-  To use "showinfo" a sample use case would be:
+  To use **showinfo** a sample use case would be:
 
 ```
 	$ find t lib | ./example/showinfo 

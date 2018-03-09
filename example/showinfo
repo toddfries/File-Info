@@ -22,7 +22,11 @@ use ReadConf;
 use File::Info;
 
 use Fcntl ':mode';
-use POSIX qw(getpid getcwd);
+use Getopt::Std;
+
+our $opt_v = 0;
+
+getopts('v');
 
 my ($dsn, $user, $pass);
 my $r = ReadConf->new;
@@ -46,8 +50,11 @@ if (!defined($pass)) {
 }
 
 my $fi = File::Info->new($dsn, $user, $pass);
-if (defined($fi->{stats}->{pgct})) {
-	printf "pgct %s\n", $fi->{stats}->{pgct};
+if ($opt_v > 0) {
+	$fi->verbose($opt_v);
+	if (defined($fi->{stats}->{pgct})) {
+		printf "pgct %s\n", $fi->{stats}->{pgct};
+	}
 }
 
 my $file;
