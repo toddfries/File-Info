@@ -54,7 +54,7 @@ sub new {
 	$me->{user} = $user;
 	$me->{pass} = $pass;
 	if ($me->{usedb} > 0) {
-		$me->{db} = $me->init_db();
+		$me->init_db();
 	}
 	$me->{hlist} = init_hashes();
 	return $bret;
@@ -92,12 +92,21 @@ sub dohash {
 
 sub init_db {
 	my ($me) = @_;
-	printf "dsn='%s', user='%s', pass='%s'\n", $me->{dsn}, $me->{user}, $me->{pass};
+	#printf "dsn='%s', user='%s', pass='%s'\n", $me->{dsn}, $me->{user}, $me->{pass};
 
 	my $db = FDC::db->new($me->{dsn}, $me->{user}, $me->{pass});
+	my $dbr = FDC::db->new($me->{dsn}, $me->{user}, $me->{pass});
+
+	$me->{db} = $db;
+	$me->{dbr} = $dbr;
 
 	if (!defined($db)) {
 		print "db connection error...not using!\n";
+		$me->{usedb} = 0;
+		return;
+	}
+	if (!defined($dbr)) {
+		print "dbr connection error...not using!\n";
 		$me->{usedb} = 0;
 		return;
 	}
@@ -163,8 +172,8 @@ sub init_db {
 		$sth = $me->init_db_hash($index_create_re, 'fileidx',
 		    'fileinfo', 'name');
 	}
-	return $db;
 }
+
 sub init_db_hash {
 	my ($me, $re, $name, $table, $param) = @_;
 	
@@ -250,6 +259,8 @@ sub dbsave {
 			$q .= sprintf "%s = '%s', ", $sn, $a->{st}->{$sn};
 		}
 		$q =~ s/, $//;
+		$q .= " WHERE id = ${id}";
+		printf STDERR "%s\n",$q;
 		$me->{db}->doquery($q);
 		return;
 	}
@@ -269,6 +280,7 @@ sub dbsave {
 	$q .= ") VALUES (";
 	$q .= $q2;
 	$q .= ")";
+	printf STDERR "%s\n",$q;
 	$me->{db}->doquery($q);
 }
 sub dbhash {
@@ -278,7 +290,7 @@ sub dbhash {
 	my $f = $a->{dbfn};
 	my $q = "SELECT * FROM fileinfo where name = '${f}'";
 
-	my $sth = $me->{db}->doquery($q);
+	my $sth = $me->{dbr}->doquery($q);
 	if (!defined($sth) || $sth == -1) {
 		print STDERR "query error, sth invalid\n";
 		return ();
@@ -295,6 +307,7 @@ sub dbhash {
 		printf STDERR "dbhash({file =>'%s',...}: returned d->{name} = '%s'\n", $f, $d->{name};
 		return ();
 	}
+	my $match = 0;
 	foreach my $attr (('mtime', 'ctime', 'ino', 'dev', 'rdev', 'size')) {
 		if (!defined($d->{$attr})) {
 			print STDERR "d->{$attr} is undef\n";
@@ -307,8 +320,11 @@ sub dbhash {
 		if ($d->{$attr} != $st->{$attr}) {
 			printf STDERR "dbhash({file=>'%s',..}): %s !match (%s vs %s)\n", $f, $attr, $d->{$attr}, $st->{$attr};
 			$a->{db_row_id} = $d->{id};
-			return;
+			$match ++;
 		}
+	}
+	if ($match > 0) {
+		return;
 	}
 	my @hashes;
 	foreach my $HT (@hnames) {
