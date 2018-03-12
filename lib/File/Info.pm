@@ -65,7 +65,9 @@ sub verbose {
 	my ($me, $vset) = @_;
 
 	if (defined($vset)) {
+		print "File::Info::vars::verbose: ".$me->{vars}->{verbose};
 		$me->{vars}->{verbose} = $vset;
+		print " -> ".$vset."\n";
 	}
 	return $me->{vars}->{verbose};
 }
@@ -334,7 +336,7 @@ sub dbhash {
 		return ();
 	}
 	my $match = 0;
-	foreach my $attr (('mtime', 'ctime', 'ino', 'dev', 'rdev', 'size')) {
+	foreach my $attr (('mtime', 'ino', 'dev', 'rdev', 'size')) {
 		if (!defined($d->{$attr})) {
 			if ($me->{vars}->{verbose} > 0) {
 				print STDERR "d->{$attr} is undef\n";
