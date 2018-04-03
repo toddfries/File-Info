@@ -18,6 +18,7 @@ use strict;
 use warnings;
 
 use FDC::db;
+use DBI qw(:sql_types);
 use DBD::Pg qw(:pg_types);
 use ReadConf;
 
@@ -245,7 +246,8 @@ sub gethash {
 	}
 	if (!open(F,$file)) {
 		# XXX more graceful...
-		die "unable to open $file";
+		print STDERR "unable to open $file";
+		return (undef,undef,undef,undef);
 	}
 	my $data;
 	# SSIZE_MAX = 32767
@@ -264,6 +266,47 @@ sub gethash {
 		$me->dbsave($a, @hashes);
 	}
 	return @hashes;
+}
+sub db_prep_alloc
+{
+	my ($me, $hname, $prepsql) = @_;
+	if ($me->verbose > 0) {
+		printf "prepalloc(%s, %s)\n", $hname, $prepsql;
+	}
+	if (!defined($me->{preps}->{dbinsert})) {
+		$me->{preps}->{dbinsert} = $me->{db}->prepare($prepsql);
+		if (!defined($me->{preps}->{dbinsert})) {
+			if ($me->verbose > 0) {
+				printf STDERR "prepalloc: db->prepare(%s) returned <undef>\n", $prepsql;
+			}
+		}
+	}
+	return $me->{preps}->{dbinsert};
+}
+sub dbinsert {
+	my ($me,$a) = @_;
+
+	if (!defined($me->{preps}->{dbinsert})) {
+		my $q = "INSERT INTO fileinfo (name, ";
+		my $q2 = "?, ";
+		foreach my $HT (@hnames) {
+			my $ht = lc($HT);
+			$q .= "${ht}, ";
+			$q2 .= "?, ";
+		}
+		foreach my $sn (@stnames) {
+			$q .= "${sn}, ";
+			$q2 .= "?, ";
+		}
+		$q =~ s/, $//;
+		$q2 =~ s/, $//;
+		$q .= ") VALUES (";
+		$q .= $q2;
+		$q .= ")";
+
+		$me->db_prep_alloc('dbinsert', $q);
+	}
+	return $me->{preps}->{dbinsert};
 }
 sub dbsave {
 	my ($me, $a, @hashes) = @_;
@@ -286,33 +329,23 @@ sub dbsave {
 		$me->{db}->doquery($q);
 		return;
 	}
-	$q = "INSERT INTO fileinfo (name, ";
-	my $q2 = sprintf "'%s', ", $a->{dbfn};
+	my $h = $me->dbinsert($a);
+	my $i=1;
+	$h->bind_param($i++, $a->{dbfn}, SQL_CHAR);
 	foreach my $HT (@hnames) {
-		my $ht = lc($HT);
-		$q .= "${ht}, ";
-		$q2 .= sprintf "'%s', ", shift @hashes;
+		$h->bind_param($i++, shift @hashes, SQL_CHAR);
 	}
 	foreach my $sn (@stnames) {
-		$q .= "${sn}, ";
-		$q2 .= sprintf "%s, ", $a->{st}->{$sn};
+		$h->bind_param($i++, $a->{st}->{$sn}, SQL_INTEGER);
 	}
-	$q =~ s/, $//;
-	$q2 =~ s/, $//;
-	$q .= ") VALUES (";
-	$q .= $q2;
-	$q .= ")";
-	if ($me->{vars}->{verbose} > 0) {
-		printf STDERR "%s\n",$q;
-	}
-	$me->{db}->doquery($q);
+	$h->execute();
 }
 sub dbhash {
 	my ($me, $a) = @_;
 
 	my $st = $a->{st};
-	my $f = $a->{dbfn};
-	my $q = "SELECT * FROM fileinfo where name = '${f}'";
+	my $f = $me->{db}->quote($a->{dbfn});
+	my $q = "SELECT * FROM fileinfo where name = ${f}";
 
 	my $sth = $me->{dbr}->doquery($q);
 	if (!defined($sth) || $sth == -1) {

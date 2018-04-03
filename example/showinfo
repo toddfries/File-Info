@@ -65,6 +65,9 @@ while (<STDIN>) {
 	if (!@hashes) {
 		@hashes = ('-','-','-','-');
 	}
+	if (!defined($hashes[0])) {
+		@hashes = ('!','!','!','!');
+	}
 
 	my $st = $a->{st};
 	my $mode = $st->{mode};
