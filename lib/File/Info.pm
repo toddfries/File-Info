@@ -17,9 +17,10 @@ package File::Info;
 use strict;
 use warnings;
 
-use FDC::db;
-use DBI qw(:sql_types);
+use Cwd qw(abs_path);
 use DBD::Pg qw(:pg_types);
+use DBI qw(:sql_types);
+use FDC::db;
 use ReadConf;
 
 use Fcntl ':mode';
@@ -75,6 +76,13 @@ sub verbose {
 
 sub dohash {
 	my ($me, $file) = @_;
+
+	if (! ($file =~ /^\//)) {
+		my $abs_path = abs_path($file);
+		if ($abs_path ne $file) {
+			$file = $abs_path;
+		}
+	}
 
 	my @statinfo = lstat($file);
 	my $arg = { };
