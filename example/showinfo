@@ -62,6 +62,9 @@ while (<STDIN>) {
 	chomp($file=$_);
 
 	my ($a,@hashes) = $fi->dohash($file);
+	if (!defined($a)) {
+		next;
+	}
 	if (!@hashes) {
 		@hashes = ('-','-','-','-');
 	}
@@ -73,7 +76,7 @@ while (<STDIN>) {
 	my $mode = $st->{mode};
 
 	if (!defined($mode)) {
-		printf STDERR "file %s mode is undef\n";
+		printf STDERR "file %s mode is undef\n", $a->{dbfn};
 		next;
 	}
 
