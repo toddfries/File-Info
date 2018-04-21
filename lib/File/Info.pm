@@ -352,8 +352,9 @@ sub dbhash {
 	my ($me, $a) = @_;
 
 	my $st = $a->{st};
-	my $f = $me->{db}->quote($a->{dbfn});
-	my $q = "SELECT * FROM fileinfo where name = ${f}";
+	my $fn = $a->{dbfn};
+	my $qf = $me->{db}->quote($fn);
+	my $q = "SELECT * FROM fileinfo where name = ".$qf;
 
 	my $sth = $me->{dbr}->doquery($q);
 	if (!defined($sth) || $sth == -1) {
@@ -364,19 +365,21 @@ sub dbhash {
 	}
 	my $d = $sth->fetchrow_hashref;
 	if (!defined($d)) {
-		#printf STDERR "dbhash({file =>'%s',...}: query '%s' returned empty\n", $f, $q;
+		if ($me->{vars}->{verbose} > 0) {
+			printf STDERR "dbhash({file =>_%s_,...}: query _%s_ returned empty\n", $fn, $q;
+		}
 		return;
 	}
 	#use Data::Dumper;
 	#print Dumper($d);
 	#print Dumper($st);
-	if ($d->{name} ne $f) {
+	if ($d->{name} ne $fn) {
 		if ($me->{vars}->{verbose} > 0) {
-			printf STDERR "dbhash({file =>'%s',...}: returned d->{name} = '%s'\n", $f, $d->{name};
+			printf STDERR "dbhash({file =>_%s_,...}: returned d->{name} = _%s_\n", $fn, $d->{name};
 		}
-		return ();
+		return;
 	}
-	my $match = 0;
+	my $mismatch = 0;
 	foreach my $attr (('mtime', 'ino', 'dev', 'rdev', 'size')) {
 		if (!defined($d->{$attr})) {
 			if ($me->{vars}->{verbose} > 0) {
@@ -392,13 +395,13 @@ sub dbhash {
 		}
 		if ($d->{$attr} != $st->{$attr}) {
 			if ($me->{vars}->{verbose} > 0) {
-				printf STDERR "dbhash({file=>'%s',..}): %s !match (%s vs %s)\n", $f, $attr, $d->{$attr}, $st->{$attr};
+				printf STDERR "dbhash({file=>'%s',..}): %s !match (%s vs %s)\n", $fn, $attr, $d->{$attr}, $st->{$attr};
 			}
 			$a->{db_row_id} = $d->{id};
-			$match ++;
+			$mismatch ++;
 		}
 	}
-	if ($match > 0) {
+	if ($mismatch > 0) {
 		return;
 	}
 	my @hashes;
