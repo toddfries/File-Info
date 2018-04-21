@@ -60,6 +60,9 @@ if ($opt_v > 0) {
 my $file;
 while (<STDIN>) {
 	chomp($file=$_);
+	if (! -f $file) {
+		next;
+	}
 
 	my ($a,@hashes) = $fi->dohash($file);
 	if (!defined($a)) {
