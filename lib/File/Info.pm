@@ -193,13 +193,19 @@ sub init_db {
 			$q .= "${ht} TEXT, ";
 		}
 		foreach my $sn (@stnames) {
-			$q .= "${sn} INT, ";
+			my $type = "INT";
+			if ($sn eq "size") {
+				$type = "BIGINT";
+			}
+			$q .= "${sn} ${type}, ";
 		}
 		$q =~ s/, $//;
 		$q .=   ")";
 		my $sth = $db->doquery($q);
 		$sth = $me->init_db_hash($index_create_re, 'fileidx',
 		    'fileinfo', 'name');
+		$sth = $me->init_db_hash($index_create_re, 'ididx',
+		    'fileinfo', 'id');
 	}
 }
 
@@ -239,7 +245,8 @@ sub gethash {
 	my ($me, $a) = @_;
 	my $file = $a->{file};
 	my @hashes;
-	if ($me->{usedb} > 0) {
+	# skip db call if file is less than 1mb, XXX what is a good value?
+	if ($me->{usedb} > 0 && $a->{st}->{size} > 1024*1024 ) {
 		@hashes = $me->dbhash($a);
 		if (@hashes) {
 			return @hashes;
@@ -344,7 +351,11 @@ sub dbsave {
 		$h->bind_param($i++, shift @hashes, SQL_CHAR);
 	}
 	foreach my $sn (@stnames) {
-		$h->bind_param($i++, $a->{st}->{$sn}, SQL_INTEGER);
+		my $type = SQL_INTEGER;
+		if ($sn eq "size") {
+			$type = SQL_INTEGER;
+		}
+		$h->bind_param($i++, $a->{st}->{$sn}, $type);
 	}
 	$h->execute();
 }
