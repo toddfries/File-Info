@@ -353,7 +353,7 @@ sub dbsave {
 	foreach my $sn (@stnames) {
 		my $type = SQL_INTEGER;
 		if ($sn eq "size") {
-			$type = SQL_INTEGER;
+			$type = SQL_BIGINT;
 		}
 		$h->bind_param($i++, $a->{st}->{$sn}, $type);
 	}
