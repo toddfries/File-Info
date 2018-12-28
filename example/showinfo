@@ -25,8 +25,9 @@ use Fcntl ':mode';
 use Getopt::Std;
 
 our $opt_v = 0;
+our $opt_V = 0;
 
-getopts('v');
+getopts('vV:');
 
 my ($dsn, $user, $pass);
 my $r = ReadConf->new;
@@ -55,6 +56,12 @@ if ($opt_v > 0) {
 	if (defined($fi->{stats}->{pgct})) {
 		printf "pgct %s\n", $fi->{stats}->{pgct};
 	}
+}
+if ($opt_V > 0) {
+	print STDERR "Validation mode.. validating $opt_V files\n";
+	my $count = $fi->validate($opt_V);
+	print STDERR "Validated $count files\n";
+	exit(0);
 }
 
 my $file;
