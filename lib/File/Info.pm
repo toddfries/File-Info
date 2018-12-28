@@ -29,6 +29,7 @@ use POSIX qw(getpid getcwd);
 our @stnames = ('dev', 'ino', 'mode', 'nlink', 'uid', 'gid', 'rdev',
 		'size', 'atime', 'mtime', 'ctime', 'blksize', 'blocks');
 our @hnames = ('SHA384', 'SHA1', 'RIPEMD160', 'MD5');
+# add SHA256 when all paths using this can be ok with doing so
 
 sub new {
 	my ($class, $dsn, $user, $pass) = @_;
@@ -188,6 +189,7 @@ sub init_db {
 		my $q = "CREATE TABLE fileinfo (";
 		$q .=   "id ${serialtype}, ";
 		$q .=   "name TEXT, ";
+		$q .=   "last_validated TIMESTAMP, ";
 		foreach my $HT (@hnames) {
 			my $ht = lc($HT);
 			$q .= "${ht} TEXT, ";
@@ -206,6 +208,10 @@ sub init_db {
 		    'fileinfo', 'name');
 		$sth = $me->init_db_hash($index_create_re, 'ididx',
 		    'fileinfo', 'id');
+		$sth = $me->init_db_hash($index_create_re, 'sha1idx',
+		    'fileinfo', 'sha1');
+		$sth = $me->init_db_hash($index_create_re, 'md5idx',
+		    'fileinfo', 'md5');
 	}
 }
 
@@ -223,6 +229,7 @@ sub init_hashes {
 	use Crypt::Digest::MD5;
 	use Crypt::Digest::SHA1;
 	use Crypt::Digest::RIPEMD160;
+	use Crypt::Digest::SHA256;
 	use Crypt::Digest::SHA384;
 
 	my $h = { };
@@ -422,6 +429,14 @@ sub dbhash {
 		push @hashes, $d->{$ht};
 	}
 	return @hashes;
+}
+
+sub validate {
+	my ($me, $count) = @_;
+	my $i = 1000;
+	if (defined($count) > 0) {
+		$i = $count;
+	}
 }
 
 1;
