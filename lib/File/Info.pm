@@ -204,14 +204,16 @@ sub init_db {
 		$q =~ s/, $//;
 		$q .=   ")";
 		my $sth = $db->doquery($q);
-		$sth = $me->init_db_hash($index_create_re, 'fileidx',
+		$sth = $me->init_db_hash($index_create_re, 'file_name_idx',
 		    'fileinfo', 'name');
-		$sth = $me->init_db_hash($index_create_re, 'ididx',
+		$sth = $me->init_db_hash($index_create_re, 'file_id_idx',
 		    'fileinfo', 'id');
-		$sth = $me->init_db_hash($index_create_re, 'sha1idx',
+		$sth = $me->init_db_hash($index_create_re, 'file_sha1_idx',
 		    'fileinfo', 'sha1');
-		$sth = $me->init_db_hash($index_create_re, 'md5idx',
+		$sth = $me->init_db_hash($index_create_re, 'file_md5_idx',
 		    'fileinfo', 'md5');
+		$sth = $me->init_db_hash($index_create_re, 'file_valid_idx',
+		    'fileinfo', 'last_validated');
 	}
 }
 
@@ -378,7 +380,7 @@ sub dbhash {
 	my $sth = $me->{dbr}->doquery($q);
 	if (!defined($sth) || $sth == -1) {
 		if ($me->{vars}->{verbose} > 0) {
-			print STDERR "query error, sth invalid\n";
+			print STDERR "query error, sth invalid (q = '${q}')\n";
 		}
 		return ();
 	}
@@ -432,11 +434,71 @@ sub dbhash {
 }
 
 sub validate {
-	my ($me, $count) = @_;
-	my $i = 1000;
-	if (defined($count) > 0) {
-		$i = $count;
+	my ($me, $i) = @_;
+	my $count = 1000;
+	if (defined($i) > 0) {
+		$count = $i;
 	}
+	my $q = "SELECT * FROM fileinfo where last_validated is null limit $count";
+	my $vcount = $me->_validation($q);
+	if ($vcount <= $count) {
+		$count = $count - $vcount;
+	} else {
+		return $vcount;
+	}
+	$q = "SELECT * FROM fileinfo order by last_validated asc limit $count";
+	my $vcount2 = $me->_validation($q);
+	my $ret = $vcount + $vcount2;
+	return $ret;
+}
+
+sub _validation {
+	my ($me, $q) = @_;
+
+	my $sth = $me->{dbr}->doquery($q);
+
+	if (!defined($sth) || $sth == -1) {
+		if ($me->{vars}->{verbose} > 0) {
+			print STDERR "query error, sth invalid (q = '${q}')\n";
+		}
+		return 0;
+	}
+	my $d;
+	my $count = 0;
+	my @eexist = ();
+	my @exist = ();
+	while ($d = $sth->fetchrow_hashref) {
+		$count++;
+		if (-f $d->{name}) {
+			push @exist, $d->{name};
+			next;
+		}
+		push @eexist, $d->{name};
+	}
+	# remove !exist entries
+	my $where = "where";
+	foreach my $name (@eexist) {
+		$where .= " name = ".$me->{db}->quote($name)." or";
+	}
+	$where =~ s/ or$//;
+	if ($where =~ /name = /) {
+		$q = "delete from fileinfo $where";
+		print STDERR "validation: $q\n";
+		$sth = $me->{db}->doquery($q);
+	}
+
+	# update entries that still exist in the filesystem
+	$where = "where";
+	foreach my $name (@exist) {
+		$where .= " name = ".$me->{db}->quote($name)." or";
+	}
+	$where =~ s/ or$//;
+	if ($where =~ /name = /) {
+		$q = "update fileinfo set last_validated = now() $where";
+		print STDERR "validation: $q\n";
+		$sth = $me->{db}->doquery($q);
+	}
+	return $count;
 }
 
 1;
