@@ -436,17 +436,21 @@ sub dbhash {
 sub validate {
 	my ($me, $i) = @_;
 	my $count = 1000;
-	if (defined($i) > 0) {
+	if (defined($i) && $i > 0) {
 		$count = $i;
 	}
-	my $q = "SELECT * FROM fileinfo where last_validated is null limit $count";
+	my $q = "SELECT * FROM fileinfo where last_validated is null";
+	$q .= " limit $count";
 	my $vcount = $me->_validation($q);
 	if ($vcount <= $count) {
 		$count = $count - $vcount;
 	} else {
 		return $vcount;
 	}
-	$q = "SELECT * FROM fileinfo order by last_validated asc limit $count";
+	# validate if over a week since last check
+	$q = "SELECT * FROM fileinfo WHERE ";
+	$q .= " last_validated < (NOW() - ( 86400 * 7 ) * INTERVAL '1' second)";
+	$q .= " order by last_validated asc limit $count";
 	my $vcount2 = $me->_validation($q);
 	my $ret = $vcount + $vcount2;
 	return $ret;
