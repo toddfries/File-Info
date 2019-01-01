@@ -487,7 +487,9 @@ sub _validation {
 	$where =~ s/ or$//;
 	if ($where =~ /name = /) {
 		$q = "delete from fileinfo $where";
-		print STDERR "validation: $q\n";
+		if ($me->{vars}->{verbose} > 2) {
+			print STDERR "validation: $q\n";
+		}
 		$sth = $me->{db}->doquery($q);
 	}
 
@@ -499,9 +501,13 @@ sub _validation {
 	$where =~ s/ or$//;
 	if ($where =~ /name = /) {
 		$q = "update fileinfo set last_validated = now() $where";
-		print STDERR "validation: $q\n";
+		if ($me->{vars}->{verbose} > 2) {
+			print STDERR "validation: $q\n";
+		}
 		$sth = $me->{db}->doquery($q);
 	}
+	$q = "vacuum";
+	$me->{db}->doquery($q);
 	return $count;
 }
 
