@@ -509,7 +509,7 @@ sub _validation {
 	foreach my $name (@exist) {
 		$ecount++;
 		$where .= " name = ".$me->{db}->quote($name)." or";
-		$me->dohash($name);
+		#$me->dohash($name);
 	}
 	if ($me->{vars}->{verbose} > 0) {
 		printf STDERR "File::Info::validate updating of %d entries starting\n", $ecount;
