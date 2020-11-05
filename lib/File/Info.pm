@@ -441,6 +441,7 @@ sub validate {
 	}
 	my $q = "SELECT * FROM fileinfo where last_validated is null";
 	$q .= " limit $count";
+	printf STDERR "validating entries never validated:\n";
 	my $vcount = $me->_validation($q);
 	if ($vcount <= $count) {
 		$count = $count - $vcount;
@@ -451,6 +452,7 @@ sub validate {
 	$q = "SELECT * FROM fileinfo WHERE ";
 	$q .= " last_validated < (NOW() - ( 86400 * 7 ) * INTERVAL '1' second)";
 	$q .= " order by last_validated asc limit $count";
+	printf STDERR "validating entries least recently validated:\n";
 	my $vcount2 = $me->_validation($q);
 	my $ret = $vcount + $vcount2;
 	return $ret;
@@ -473,16 +475,24 @@ sub _validation {
 	my @exist = ();
 	while ($d = $sth->fetchrow_hashref) {
 		$count++;
+		if ($me->{vars}->{verbose} > 1) {
+			printf STDERR "File::Info::validate queueing '%s'\n", $d->{name};
+		}
 		if (-f $d->{name}) {
 			push @exist, $d->{name};
 			next;
 		}
 		push @eexist, $d->{name};
 	}
+	my $ecount = 0;
 	# remove !exist entries
 	my $where = "where";
 	foreach my $name (@eexist) {
+		$ecount++;
 		$where .= " name = ".$me->{db}->quote($name)." or";
+	}
+	if ($me->{vars}->{verbose} > 0) {
+		printf STDERR "File::Info::validate deletion of %d entries starting\n", $ecount;
 	}
 	$where =~ s/ or$//;
 	if ($where =~ /name = /) {
@@ -495,8 +505,14 @@ sub _validation {
 
 	# update entries that still exist in the filesystem
 	$where = "where";
+	$ecount = 0;
 	foreach my $name (@exist) {
+		$ecount++;
 		$where .= " name = ".$me->{db}->quote($name)." or";
+		$me->dohash($name);
+	}
+	if ($me->{vars}->{verbose} > 0) {
+		printf STDERR "File::Info::validate updating of %d entries starting\n", $ecount;
 	}
 	$where =~ s/ or$//;
 	if ($where =~ /name = /) {
@@ -506,8 +522,8 @@ sub _validation {
 		}
 		$sth = $me->{db}->doquery($q);
 	}
-	$q = "vacuum";
-	$me->{db}->doquery($q);
+	#$q = "vacuum";
+	#$me->{db}->doquery($q);
 	return $count;
 }
 
