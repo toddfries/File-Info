@@ -156,7 +156,7 @@ sub init_db {
                 $me->{get}->{dbsz} .= "' ORDER BY db_size";
 		$me->{stats}->{pgct} = $db->do_oneret_query($me->{get}->{dbsz});
                 $me->{bbt} = { pg_type => PG_BYTEA };
-                $index_create_re = "CREATE INDEX %NAME% ON %TABLE% using btree ( %PARAMS% )";
+                $index_create_re = "CREATE %TYPE% INDEX %NAME% ON %TABLE% using btree ( %PARAMS% )";
                 $db->do("SET application_name = '?/".getpid()."'");
 	} else {
 		$me->{usedb} = 0;
@@ -188,7 +188,7 @@ sub init_db {
 	if (!defined($tablefound{'fileinfo'})) {
 		my $q = "CREATE TABLE fileinfo (";
 		$q .=   "id ${serialtype}, ";
-		$q .=   "name TEXT, ";
+		$q .=   "name TEXT unique, ";
 		$q .=   "last_validated TIMESTAMP, ";
 		foreach my $HT (@hnames) {
 			my $ht = lc($HT);
@@ -205,7 +205,7 @@ sub init_db {
 		$q .=   ")";
 		my $sth = $db->doquery($q);
 		$sth = $me->init_db_hash($index_create_re, 'file_name_idx',
-		    'fileinfo', 'name');
+		    'fileinfo', 'name', 'UNIQUE');
 		$sth = $me->init_db_hash($index_create_re, 'file_id_idx',
 		    'fileinfo', 'id');
 		$sth = $me->init_db_hash($index_create_re, 'file_sha1_idx',
@@ -218,11 +218,15 @@ sub init_db {
 }
 
 sub init_db_hash {
-	my ($me, $re, $name, $table, $param) = @_;
-	
+	my ($me, $re, $name, $table, $param, $type) = @_;
+
+	if (!defined($type)) {	
+		$type = "";
+	}
 	$re =~ s/%NAME%/$name/;
 	$re =~ s/%TABLE%/$table/;
 	$re =~ s/%PARAMS%/$param/;
+	$re =~ s/%TYPE%/$type/;
 
 	return $me->{db}->doquery($re)
 }
@@ -346,6 +350,7 @@ sub dbsave {
 		foreach my $sn (@stnames) {
 			$q .= sprintf "%s = '%s', ", $sn, $a->{st}->{$sn};
 		}
+		$q .= "last_validated = now(), ";
 		$q =~ s/, $//;
 		$q .= " WHERE id = ${id}";
 		if ($me->{vars}->{verbose} > 0) {
@@ -400,6 +405,8 @@ sub dbhash {
 		}
 		return;
 	}
+	# if the name matches, this must be set regardless, to avoid duplicate inserts
+	$a->{db_row_id} = $d->{id};
 	my $mismatch = 0;
 	foreach my $attr (('mtime', 'ino', 'dev', 'rdev', 'size')) {
 		if (!defined($d->{$attr})) {
@@ -418,7 +425,6 @@ sub dbhash {
 			if ($me->{vars}->{verbose} > 0) {
 				printf STDERR "dbhash({file=>'%s',..}): %s !match (%s vs %s)\n", $fn, $attr, $d->{$attr}, $st->{$attr};
 			}
-			$a->{db_row_id} = $d->{id};
 			$mismatch ++;
 		}
 	}
