@@ -1,4 +1,4 @@
-# Copyright (c) 2018 Todd T. Fries <todd@fries.net>
+# Copyright (c) 2018,2020 Todd T. Fries <todd@fries.net>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -134,6 +134,9 @@ sub dohash {
 			}
 			printf STDERR "dohash(%s) hashes[0] = '%s'\n", $file,$h0;
 		}
+	}
+	if ($me->{vars}->{verbose} > 0) {
+		printf STDERR "dohash(%s) end\n", $file;
 	}
 
 	return ($arg,@hashes);
@@ -365,9 +368,9 @@ sub dbinsert {
 }
 sub dbsave {
 	my ($me, $a, @hashes) = @_;
-	my $id = $a->{db_row_id};
+	my $d = $me->dbcheck($a->{dbfn});
 	my $q;
-	if (defined($id)) {
+	if (defined($d) && defined($d->{id})) {
 		$q = "UPDATE fileinfo set ";
 		foreach my $HT (@hnames) {
 			my $ht = lc($HT);
@@ -378,16 +381,27 @@ sub dbsave {
 		}
 		$q .= "last_validated = now(), ";
 		$q =~ s/, $//;
-		$q .= " WHERE id = ${id}";
+		$q .= " WHERE id = ".$d->{id};
 		if ($me->{vars}->{verbose} > 0) {
-			printf STDERR "%s\n",$q;
+			printf STDERR "dbsave: q = '%s'\n",$q;
 		}
 		$me->{db}->doquery($q);
 		return;
 	}
-	my $h = $me->dbinsert($a);
 	my $i=1;
-	$h->bind_param($i++, $a->{dbfn}, SQL_CHAR);
+	my $h = $me->dbinsert($a);
+	my $rv;
+	eval {
+		$rv = $h->bind_param($i++, $a->{dbfn}, SQL_CHAR);
+	};
+	if ($@) {
+		my $rvstr = $rv;
+		if (!defined($rv)) {
+			$rvstr = '<undef>';
+		}
+		printf STDERR "dbsave: h->bind_param(%d, %s, SQL_CHAR)  returned '%s'\n", $i-1, $a->{dbfn}, $rvstr;
+		printf STDERR "dbsave: Error: '%s\n", $@;
+	}
 	foreach my $HT (@hnames) {
 		$h->bind_param($i++, shift @hashes, SQL_CHAR);
 	}
@@ -398,13 +412,20 @@ sub dbsave {
 		}
 		$h->bind_param($i++, $a->{st}->{$sn}, $type);
 	}
-	$h->execute();
+	eval {
+		$rv = $h->execute();
+	};
+	if ($@) {
+		my $rvstr = $rv;
+		if (!defined($rv)) {
+			$rvstr = '<undef>';
+		}
+		printf STDERR "dbsave: h->execute returned '%s'\n", $rvstr;
+		printf STDERR "dbsave: Error: '%s\n", $@;
+	}
 }
-sub dbhash {
-	my ($me, $a) = @_;
-
-	my $st = $a->{st};
-	my $fn = $a->{dbfn};
+sub dbcheck {
+	my ($me, $fn) = @_;
 	my $qf = $me->{db}->quote($fn);
 	my $q = "SELECT * FROM fileinfo where name = ".$qf;
 
@@ -413,7 +434,7 @@ sub dbhash {
 		if ($me->{vars}->{verbose} > 0) {
 			print STDERR "query error, sth invalid (q = '${q}')\n";
 		}
-		return ();
+		return;
 	}
 	my $d = $sth->fetchrow_hashref;
 	if (!defined($d)) {
@@ -421,6 +442,19 @@ sub dbhash {
 			printf STDERR "dbhash({file =>_%s_,...}: query _%s_ returned empty\n", $fn, $q;
 		}
 		return;
+	}
+	return $d;
+}
+sub dbhash {
+	my ($me, $a) = @_;
+
+	my $st = $a->{st};
+	my $fn = $a->{dbfn};
+	my $d = $a->{db_row_id} = $me->dbcheck($fn);
+	if (defined($d) && defined($d->{id})) {
+		$a->{db_row_id} = $d->{id};
+	} else {
+		return ();
 	}
 	$a->{db_row_id} = $d->{id};
 	#use Data::Dumper;
@@ -432,7 +466,7 @@ sub dbhash {
 		}
 		return;
 	}
-	# if the name matches, this must be set regardless, to avoid duplicate inserts
+
 	my $mismatch = 0;
 	foreach my $attr (('mtime', 'ino', 'dev', 'rdev', 'size')) {
 		if (!defined($d->{$attr})) {
