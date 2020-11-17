@@ -68,9 +68,9 @@ sub verbose {
 	my ($me, $vset) = @_;
 
 	if (defined($vset)) {
-		print "File::Info::vars::verbose: ".$me->{vars}->{verbose};
+		print STDERR "File::Info::vars::verbose: ".$me->{vars}->{verbose};
 		$me->{vars}->{verbose} = $vset;
-		print " -> ".$vset."\n";
+		print STDERR " -> ".$vset."\n";
 	}
 	return $me->{vars}->{verbose};
 }
@@ -78,11 +78,17 @@ sub verbose {
 sub dohash {
 	my ($me, $file) = @_;
 
+	if ($me->{vars}->{verbose} > 0) {
+		printf STDERR "dohash(%s) start\n", $file;
+	}
 	if (! ($file =~ /^\//)) {
 		my $abs_path = abs_path($file);
 		if ($abs_path ne $file) {
 			$file = $abs_path;
 		}
+	}
+	if ($me->{vars}->{verbose} > 0) {
+		printf STDERR "dohash(%s) after abs_path\n", $file;
 	}
 
 	my @statinfo = lstat($file);
@@ -96,6 +102,9 @@ sub dohash {
 		    $file;
 		return;
 	}
+	if ($me->{vars}->{verbose} > 0) {
+		printf STDERR "dohash(%s) stat success\n", $file;
+	}
 	$arg->{file} = $file;
 	if ($file =~ /^\//) {
 		$arg->{dbfn} = $file;
@@ -105,9 +114,26 @@ sub dohash {
 	$arg->{dbfn} =~ s/\/\//\//g;
 	$arg->{dbfn} =~ s/\/\.\//\//g;
 
+	if ($me->{vars}->{verbose} > 0) {
+		printf STDERR "dohash(%s) arg->{dbfn} = '%s'\n", $file, $arg->{dbfn};
+	}
+
 	my @hashes;
 	if (S_ISREG($mode)) {
+		if ($me->{vars}->{verbose} > 0) {
+			printf STDERR "dohash(%s) pre gethash\n", $file;
+		}
 		@hashes = $me->gethash($arg);
+		if ($me->{vars}->{verbose} > 0) {
+			my $h0;
+			if (@hashes) {
+				$h0 = $hashes[0];
+			}
+			if (!defined($h0)) {
+				$h0 = '<undef>';
+			}
+			printf STDERR "dohash(%s) hashes[0] = '%s'\n", $file,$h0;
+		}
 	}
 
 	return ($arg,@hashes);
@@ -115,7 +141,7 @@ sub dohash {
 
 sub init_db {
 	my ($me) = @_;
-	#printf "dsn='%s', user='%s', pass='%s'\n", $me->{dsn}, $me->{user}, $me->{pass};
+	#printf STDERR "dsn='%s', user='%s', pass='%s'\n", $me->{dsn}, $me->{user}, $me->{pass};
 
 	my $db = FDC::db->new($me->{dsn}, $me->{user}, $me->{pass});
 	my $dbr = FDC::db->new($me->{dsn}, $me->{user}, $me->{pass});
@@ -125,14 +151,14 @@ sub init_db {
 
 	if (!defined($db)) {
 		if ($me->{vars}->{verbose} > 0) {
-			print "db connection error...not using!\n";
+			print STDERR "db connection error...not using!\n";
 		}
 		$me->{usedb} = 0;
 		return;
 	}
 	if (!defined($dbr)) {
 		if ($me->{vars}->{verbose} > 0) {
-			print "dbr connection error...not using!\n";
+			print STDERR "dbr connection error...not using!\n";
 		}
 		$me->{usedb} = 0;
 		return;
@@ -142,7 +168,7 @@ sub init_db {
 
 	my $dbmsname = $db->getdbh()->get_info( 17 );
 	my $dbmsver  = $db->getdbh()->get_info( 18 );
-	#printf "dbms name %s version %s\n", $dbmsname, $dbmsver;
+	#printf STDERR "dbms name %s version %s\n", $dbmsname, $dbmsver;
 
 	my ($serialtype,$blobtype,$tablere,$index_create_re);
 	if ($dbmsname eq "PostgreSQL") {
@@ -174,7 +200,7 @@ sub init_db {
 		if ($tname =~ /^(information_schema|pg_catalog)\./) {
 			next;
 		}
-		#printf "Checking dbms table '%s'", $tname;
+		#printf STDERR "Checking dbms table '%s'", $tname;
 		foreach my $tn (('fileinfo')) {
 			my $tre = $tablere;
 			$tre =~ s/%name%/$tn/g;
@@ -182,7 +208,7 @@ sub init_db {
 				$tablefound{$tn} = 1;
 			}
 		}
-		#print "\n";
+		#print STDERR "\n";
 	}
 
 	if (!defined($tablefound{'fileinfo'})) {
@@ -300,7 +326,7 @@ sub db_prep_alloc
 {
 	my ($me, $hname, $prepsql) = @_;
 	if ($me->verbose > 0) {
-		printf "prepalloc(%s, %s)\n", $hname, $prepsql;
+		printf STDERR "prepalloc(%s, %s)\n", $hname, $prepsql;
 	}
 	if (!defined($me->{preps}->{dbinsert})) {
 		$me->{preps}->{dbinsert} = $me->{db}->prepare($prepsql);
@@ -396,9 +422,10 @@ sub dbhash {
 		}
 		return;
 	}
+	$a->{db_row_id} = $d->{id};
 	#use Data::Dumper;
-	#print Dumper($d);
-	#print Dumper($st);
+	#print STDERR Dumper($d);
+	#print STDERR Dumper($st);
 	if ($d->{name} ne $fn) {
 		if ($me->{vars}->{verbose} > 0) {
 			printf STDERR "dbhash({file =>_%s_,...}: returned d->{name} = _%s_\n", $fn, $d->{name};
@@ -406,7 +433,6 @@ sub dbhash {
 		return;
 	}
 	# if the name matches, this must be set regardless, to avoid duplicate inserts
-	$a->{db_row_id} = $d->{id};
 	my $mismatch = 0;
 	foreach my $attr (('mtime', 'ino', 'dev', 'rdev', 'size')) {
 		if (!defined($d->{$attr})) {
