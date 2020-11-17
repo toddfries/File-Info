@@ -52,7 +52,7 @@ if (!defined($pass)) {
 
 my $fi = File::Info->new($dsn, $user, $pass);
 if ($opt_v > 0) {
-	$fi->verbose($opt_v+3);
+	$fi->verbose($opt_v);
 	if (defined($fi->{stats}->{pgct})) {
 		printf "pgct %s\n", $fi->{stats}->{pgct};
 	}
