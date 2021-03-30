@@ -507,7 +507,9 @@ sub validate {
 	}
 	my $q = "SELECT * FROM fileinfo where last_validated is null";
 	$q .= " limit $count";
-	printf STDERR "validating entries never validated:\n";
+	if ($me->{vars}->{verbose} > 0) {
+		printf STDERR "validating entries never validated:\n";
+	}
 	my $vcount = $me->_validation($q);
 	if ($vcount <= $count) {
 		$count = $count - $vcount;
@@ -518,10 +520,12 @@ sub validate {
 	$q = "SELECT * FROM fileinfo WHERE ";
 	$q .= " last_validated < (NOW() - ( 86400 * 7 ) * INTERVAL '1' second)";
 	$q .= " order by last_validated asc limit $count";
-	printf STDERR "validating entries least recently validated:\n";
+	if ($me->{vars}->{verbose} > 0) {
+		printf STDERR "validating entries least recently validated:\n";
+	}
 	my $vcount2 = $me->_validation($q);
 	my $ret = $vcount + $vcount2;
-	return $ret;
+	return ($ret,$vcount,$vcount2);
 }
 
 sub _validation {
