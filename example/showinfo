@@ -58,9 +58,11 @@ if ($opt_v > 0) {
 	}
 }
 if ($opt_V > 0) {
-	print STDERR "Validation mode.. validating $opt_V files\n";
-	my $count = $fi->validate($opt_V);
-	print STDERR "Validated $count files\n";
+	if ($opt_v > 0) {
+		print STDERR "Validation mode.. validating $opt_V files\n";
+	}
+	my ($total,$dcount,$ucount) = $fi->validate($opt_V);
+	print STDERR "Validated files .. dcount/ucount/total = $dcount/$ucount/$total\n";
 	exit(0);
 }
 
