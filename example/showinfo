@@ -24,10 +24,11 @@ use File::Info;
 use Fcntl ':mode';
 use Getopt::Std;
 
+our $opt_H;
 our $opt_v = 0;
 our $opt_V = 0;
 
-getopts('vV:');
+getopts('HvV:');
 
 my ($dsn, $user, $pass);
 my $r = ReadConf->new;
@@ -48,6 +49,24 @@ if (!defined($user)) {
 }
 if (!defined($pass)) {
 	$pass = "";
+}
+
+our ($stat_size, $stat_layout);
+
+if (defined($opt_H)) {
+	use File::Temp;
+	my $dir = File::Temp->newdir("showinfo-XXXXXXXXXX");
+	local $ENV{PERL5LIB} = join ':', @INC;
+	open( my $fh, "/usr/bin/h2ph -d $dir /usr/include/sys/syscall.h|") or
+		die "h2ph: $!";
+	my @tmp = <$fh>;
+	close($fh) or die $! ? "h2ph: $!" : "h2ph: $?";
+	local @INC = ("$dir/usr/include", "$dir");
+	require 'sys/syscall.ph';
+
+	$stat_layout = 'LLQLLLLQQQQQQQQLLLQQ';
+	my $dummy_buffer = pack($stat_layout, (0) x (length($stat_layout)/4));
+	$stat_size = length($dummy_buffer);
 }
 
 my $fi = File::Info->new($dsn, $user, $pass);
@@ -71,6 +90,13 @@ while (<STDIN>) {
 	chomp($file=$_);
 	if (! -f $file) {
 		next;
+	}
+	# honor nodump
+	if (defined($opt_H)) {
+		my $nodump = check_nodump($file);
+		if ($nodump > 0) {
+			next;
+		}
 	}
 
 	my ($a,@hashes) = $fi->dohash($file);
@@ -122,3 +148,19 @@ while (<STDIN>) {
 	printf "|%x|%x|%s%s\n",$st->{mtime},$st->{size},$file,$t;
 }
 1;
+
+# return nodump flag, not return code
+sub check_nodump {
+	my ($filename) = @_;
+	my $sb = "\0" x $stat_size;
+	my $result = syscall(SYS_stat(), $filename, $sb);
+	if ($result != 0) {
+		return 0;
+	}
+	my @stinfo = unpack($stat_layout, $sb);
+	my ($mode, $dev, $ino, $nlink, $uid, $gid, $rdev, $atim, $atimsec,
+	    $amtim, $mtimsec, $ctim, $ctimsec, $size, $blocks, $blksize,
+	    $flags, $gen, $birth, $birthsec) = @stinfo;
+	my $nodump = $flags & 0x1;
+	return $nodump;
+}
