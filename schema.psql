@@ -3,7 +3,7 @@
 --
 
 -- Dumped from database version 11.7
--- Dumped by pg_dump version 12.4
+-- Dumped by pg_dump version 13.4
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -25,6 +25,7 @@ SET default_tablespace = '';
 CREATE TABLE public.fileinfo (
     id integer NOT NULL,
     name text,
+    last_validated timestamp without time zone,
     sha384 text,
     sha1 text,
     ripemd160 text,
@@ -41,8 +42,7 @@ CREATE TABLE public.fileinfo (
     mtime integer,
     ctime integer,
     blksize integer,
-    blocks integer,
-    last_validated timestamp without time zone
+    blocks integer
 );
 
 
@@ -78,38 +78,46 @@ ALTER TABLE ONLY public.fileinfo ALTER COLUMN id SET DEFAULT nextval('public.fil
 
 
 --
--- Name: fileidx; Type: INDEX; Schema: public; Owner: todd
+-- Name: fileinfo fileinfo_name_key; Type: CONSTRAINT; Schema: public; Owner: todd
 --
 
-CREATE INDEX fileidx ON public.fileinfo USING btree (name);
-
-
---
--- Name: filemd5; Type: INDEX; Schema: public; Owner: todd
---
-
-CREATE INDEX filemd5 ON public.fileinfo USING btree (md5);
+ALTER TABLE ONLY public.fileinfo
+    ADD CONSTRAINT fileinfo_name_key UNIQUE (name);
 
 
 --
--- Name: filesha1; Type: INDEX; Schema: public; Owner: todd
+-- Name: file_id_idx; Type: INDEX; Schema: public; Owner: todd
 --
 
-CREATE INDEX filesha1 ON public.fileinfo USING btree (sha1);
-
-
---
--- Name: filevalid; Type: INDEX; Schema: public; Owner: todd
---
-
-CREATE INDEX filevalid ON public.fileinfo USING btree (last_validated);
+CREATE INDEX file_id_idx ON public.fileinfo USING btree (id);
 
 
 --
--- Name: ididx; Type: INDEX; Schema: public; Owner: todd
+-- Name: file_md5_idx; Type: INDEX; Schema: public; Owner: todd
 --
 
-CREATE INDEX ididx ON public.fileinfo USING btree (id);
+CREATE INDEX file_md5_idx ON public.fileinfo USING btree (md5);
+
+
+--
+-- Name: file_name_idx; Type: INDEX; Schema: public; Owner: todd
+--
+
+CREATE UNIQUE INDEX file_name_idx ON public.fileinfo USING btree (name);
+
+
+--
+-- Name: file_sha1_idx; Type: INDEX; Schema: public; Owner: todd
+--
+
+CREATE INDEX file_sha1_idx ON public.fileinfo USING btree (sha1);
+
+
+--
+-- Name: file_valid_idx; Type: INDEX; Schema: public; Owner: todd
+--
+
+CREATE INDEX file_valid_idx ON public.fileinfo USING btree (last_validated);
 
 
 --
